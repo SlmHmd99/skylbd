@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sound → Pick Image — Mini Game</title>
+<style>
+  :root{
+    --bg:#071127;
+    --card:#0b1220;
+    --muted:#94a3b8;
+    --accent:#f97316;
+    --glass:rgba(255,255,255,0.03);
+    --pool-bg:#f4f6fb;
+    --pool-fore:#0b1628;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,Segoe UI,system-ui,Roboto,Arial;background:linear-gradient(180deg,#071127,#0d1a2a);color:#e6eef8}
+  .wrap{max-width:980px;margin:24px auto;padding:18px}
+  .card{background:var(--card);border-radius:14px;padding:18px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  header h1{font-size:18px;margin:0}
+  .top-audio{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  audio{width:100%;max-width:420px;border-radius:8px}
+  .q-info{color:var(--muted);font-size:14px}
+  .instruction{font-weight:800;color:#ffdca3;margin-top:8px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+  .img-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:6px;border:1px solid rgba(255,255,255,0.03);cursor:pointer;display:grid;place-items:center;min-height:110px}
+  .img-card img{width:100%;height:100%;object-fit:cover;border-radius:8px;display:block}
+  .img-card:active{transform:translateY(2px)}
+  .status{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--muted);font-size:13px}
+  .progress{height:10px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden;flex:1;margin-left:12px}
+  .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#ffd166,#f97316);transition:width .28s}
+  .small{font-size:13px;color:var(--muted)}
+  .btn{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:rgba(255,255,255,0.04);color:#e6eef8;font-weight:700;cursor:pointer}
+  .btn.primary{background:linear-gradient(180deg,#ff8a50,#f97316);color:#071127;border:1px solid rgba(0,0,0,0.12)}
+  .center{display:flex;justify-content:center;align-items:center}
+  /* code screen */
+  .code-box{display:flex;flex-direction:column;gap:12px;align-items:center;padding:12px}
+  .code-text{font-weight:900;color:#ffdca3;font-size:20px;letter-spacing:2px;background:rgba(255,255,255,0.02);padding:10px 14px;border-radius:8px}
+  .code-slots{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+  .code-slot{min-width:44px;height:44px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);display:grid;place-items:center;font-weight:800;background:transparent;cursor:pointer}
+  .code-slot.filled{background:rgba(255,255,255,0.02)}
+  .code-pool{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}
+  .pool-btn{min-width:44px;height:40px;border-radius:8px;border:1px solid rgba(11,22,40,0.08);display:inline-grid;place-items:center;padding:6px 10px;background:var(--pool-bg);color:var(--pool-fore);cursor:pointer;font-weight:800}
+  .pool-btn.disabled{opacity:0.45;pointer-events:none}
+  .controls{display:flex;gap:8px;margin-top:10px}
+  .code-error{color:#ff6b6b;font-weight:700}
+  /* cat overlay (modal) */
+  .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,0.75);z-index:1000;padding:18px}
+  .overlay .panel{
+    max-width:900px;
+    width:100%;
+    max-height:90vh;
+    display:flex;
+    flex-direction:column;
+    background:var(--card);padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.04);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  }
+  .gif-wrap{width:100%;max-width:420px;height:auto;margin:6px auto;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .gif-wrap img{max-width:100%;max-height:240px;display:block}
+  .links a{color:#7dd3fc;text-decoration:underline}
+  .video-list{display:none;margin-top:12px;gap:8px;justify-content:center;overflow:auto;padding:6px;border-radius:8px}
+  .video-item{display:flex;flex-direction:column;align-items:center;gap:6px;margin:6px}
+  .video-item iframe{width:100%;max-width:320px;height:180px;border:0;border-radius:8px}
+  .panel-footer{margin-top:12px;display:flex;justify-content:flex-end}
+  /* scare overlay (flash) */
+  .scare{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#000;z-index:2000}
+  .scare img{width:100%;height:100%;object-fit:cover}
+  /* responsive */
+  @media (max-width:840px){
+    .panel{padding:12px}
+    .video-item iframe{max-width:280px;height:160px}
+  }
+  @media (max-width:420px){
+    .grid{grid-template-columns:1fr 1fr}
+    .video-item iframe{max-width:260px;height:150px}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="app">
+      <header>
+        <h1>Spot the Sound — Pick the Image</h1>
+        <div class="small">Mobile friendly • No libs</div>
+      </header>
+
+      <div class="instruction">Click on the image that matches the sound.</div>
+
+      <div id="quizScreen" style="margin-top:12px">
+        <div class="top-audio">
+          <audio id="qAudio" controls preload="none">
+            <source id="audioSrc" src="" type="audio/mpeg">
+            Your browser does not support audio.
+          </audio>
+          <div style="flex:1">
+            <div id="prompt" class="q-info">Listen and pick the matching image</div>
+            <div class="status" style="margin-top:8px">
+              <div class="small">Question <strong id="qIndex">0</strong>/<span id="qTotal">0</span></div>
+              <div class="progress" aria-hidden="false">
+                <div id="progBar" class="progress-bar" style="width:0%"></div>
+              </div>
+              <div style="margin-left:12px" class="small">Wrong: <strong id="wrongCount">0</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid" id="choices" aria-live="polite"></div>
+      </div>
+
+      <div id="codeScreen" style="display:none;margin-top:12px">
+        <div class="code-box card">
+          <div class="message small">You completed the audio-image challenges. Assemble the hidden code from the characters below.</div>
+          <div id="displayCode" class="code-text">•••-•••</div>
+          <div id="codeSlots" class="code-slots" aria-hidden="false"></div>
+          <div id="codePool" class="code-pool"></div>
+          <div class="controls">
+            <button id="backspaceBtn" class="btn">⌫ Back</button>
+            <button id="clearBtnCode" class="btn">Clear</button>
+            <button id="submitBtnCode" class="btn primary">Submit</button>
+          </div>
+          <div id="codeError" class="code-error" style="display:none"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Cat overlay shown after 3 wrong answers -->
+  <div id="catOverlay" class="overlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="panel" role="document">
+      <div style="flex:0 0 auto">
+        <h2 style="margin:0 0 8px 0;color:#ffdca3">wait, how come you don't know these cats?</h2>
+        <p style="margin:6px 0;color:var(--muted)">what the heck were you consuming on social media!! <br> hmmmmmmm....</p>
+      </div>
+
+      <!-- Suspicious cat GIF (constrained) -->
+      <div class="gif-wrap" aria-hidden="true">
+        <!-- if this URL is blocked in your environment, replace with a different GIF path under ASSET_PATH -->
+        <div  class="tenor-gif-embed" data-postid="11293696126152426366" data-share-method="host" data-aspect-ratio="1.33333" data-width="100%"><a href="https://tenor.com/view/kiryuureno-gatinho-kiryuureno00-gif-11293696126152426366">Kiryuureno Gatinho Sticker</a>from <a href="https://tenor.com/search/kiryuureno-stickers">Kiryuureno Stickers</a></div> <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
+      </div>
+
+      <!-- button to show inline video players -->
+      <div style="margin-top:8px">
+        <button id="showVideosBtn" class="btn">see thoses videos for reference</button>
+      </div>
+
+      <!-- video list container (scrollable inside panel) -->
+      <div id="videoList" class="video-list" style="display:none;max-height:40vh;overflow:auto;padding-top:8px;"></div>
+
+      <!-- footer with proceed button -->
+      <div class="panel-footer">
+        <button id="catProceedBtn" class="btn primary">Proceed with the challenge</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- scare flash overlay (shows larry.png briefly) -->
+  <div id="scare" class="scare" aria-hidden="true"><img id="scareImg" src="" alt="scare"></div>
+
+<script>
+/* CONFIG */
+const ASSET_PATH = ''; // set this if your assets live in a folder, e.g. 'assets/'
+const MAX_WRONG_BEFORE_CAT = 3; // 3 wrong answers triggers the overlay+restart
+const QUESTIONS = [
+  // replace with your real audio and image paths
+  { audio:'./audio/happy_happy_happy.mp3', prompt:'Which image matches this sound?', images:['./images/awoo.png','./images/hapy_hapy_hapy.png','./images/huh.png','./images/wrow_wrow.png'], correctIndex:1 },
+  { audio:'./audio/huh_huh.mp3', prompt:'Which image matches this sound?', images:['./images/huh.png','./images/laugh_dog.png','./images/awoo.png','./images/tabtabitab.png'], correctIndex:0 },
+  { audio:'./audio/tabtabitab.mp3', prompt:'Which image matches this sound?', images:['./images/tabtabitab.png','./images/laugh.png','./images/wewewe.png','./images/huh.png'], correctIndex:0 },
+  { audio:'./audio/talking_cat.mp3', prompt:'Which image matches this sound?', images:['./images/wewewe.png','./images/wrow_wrow.png','./images/awoo.png','./images/tabtabitab.png'], correctIndex:1 },
+  { audio:'./audio/waaahahahah.mp3', prompt:'Which image matches this sound?', images:['./images/laugh_dog.png','./images/wewewe.png','./images/awoo.png','./images/laugh.png'], correctIndex:3 },
+  { audio:'./audio/wiwiwiwi.mp3', prompt:'Which image matches this sound?', images:['./images/hapy_hapy_hapy.png','./images/laugh_dog.png','./images/wewewe.png','./images/tabtabitab.png'], correctIndex:2 },
+  { audio:'./audio/laugh_dog.mp3', prompt:'Which image matches this sound?', images:['./images/tabtabitab.png','./images/laugh.png','./images/laugh_dog.png','./images/tabtabitab.png'], correctIndex:2 }
+];
+
+const VIDEO_SOURCES = [
+  { title: 'huh cat', id: 'mQ-9NPtsh0c' },
+  { title: 'laughing dog', id: 'uLbz7eS1ZOI' },
+  { title: 'cat', id: 'pOByO1LQhho'},
+  { title: 'tabtabitab cat', id: 'Nb5yuCUcaEs' },
+  { title: 'talking cat', id: '4OHaNcIuRxY' },
+  { title: 'laughing cat', id: '0FUuPgoWRYU' },
+  { title: 'wiwi cat', id: 'sFng9lZuKQk' }
+];
+
+/* STATE & DOM refs */
+let qIndex = 0;
+let wrongTotal = 0;
+let ONE_TIME_CODE = null;
+let videoListRendered = false;
+
+const qAudio = document.getElementById('qAudio');
+const audioSrc = document.getElementById('audioSrc');
+const promptEl = document.getElementById('prompt');
+const choicesEl = document.getElementById('choices');
+const qIndexEl = document.getElementById('qIndex');
+const qTotalEl = document.getElementById('qTotal');
+const wrongCountEl = document.getElementById('wrongCount');
+const progBar = document.getElementById('progBar');
+
+const codeScreen = document.getElementById('codeScreen');
+const codeSlots = document.getElementById('codeSlots');
+const codePool = document.getElementById('codePool');
+const displayCode = document.getElementById('displayCode');
+const codeError = document.getElementById('codeError');
+const backspaceBtn = document.getElementById('backspaceBtn');
+const clearBtnCode = document.getElementById('clearBtnCode');
+const submitBtnCode = document.getElementById('submitBtnCode');
+
+const catOverlay = document.getElementById('catOverlay');
+const catProceedBtn = document.getElementById('catProceedBtn');
+const showVideosBtn = document.getElementById('showVideosBtn');
+const videoList = document.getElementById('videoList');
+
+const scare = document.getElementById('scare');
+const scareImg = document.getElementById('scareImg');
+
+/* HELPERS */
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]] } return arr }
+function normalize(s){ return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+
+/* QUIZ */
+function init(){
+  qTotalEl.textContent = QUESTIONS.length;
+  qIndex = 0;
+  wrongTotal = 0;
+  wrongCountEl.textContent = wrongTotal;
+  codeScreen.style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'block';
+  showQuestion(qIndex);
+}
+function showQuestion(i){
+  if(i < 0 || i >= QUESTIONS.length) return;
+  const Q = QUESTIONS[i];
+  qIndexEl.textContent = i+1;
+  promptEl.textContent = Q.prompt || 'Listen and pick the matching image';
+  audioSrc.src = (ASSET_PATH || '') + (Q.audio || '');
+  try{ qAudio.load(); qAudio.play().catch(()=>{}); }catch(e){}
+  renderChoices(Q);
+  updateProgress();
+}
+function renderChoices(Q){
+  choicesEl.innerHTML = '';
+  Q.images.forEach((imgSrc, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'img-card';
+    card.tabIndex = 0;
+    card.setAttribute('role','button');
+    const img = document.createElement('img');
+    img.alt = 'choice ' + (idx+1);
+    img.src = (ASSET_PATH || '') + imgSrc;
+    card.appendChild(img);
+    card.addEventListener('click', ()=> handleChoice(idx));
+    card.addEventListener('keydown', (e)=> { if(e.key === 'Enter' || e.key === ' ') handleChoice(idx); });
+    choicesEl.appendChild(card);
+  });
+}
+function handleChoice(selectedIdx){
+  const Q = QUESTIONS[qIndex];
+  if(selectedIdx === Q.correctIndex){
+    qIndex++;
+    if(qIndex >= QUESTIONS.length){
+      setTimeout(()=> finishQuiz(), 250);
+    } else {
+      setTimeout(()=> showQuestion(qIndex), 250);
+    }
+  } else {
+    wrongTotal++;
+    wrongCountEl.textContent = wrongTotal;
+    const nodes = Array.from(choicesEl.children);
+    nodes[selectedIdx].classList.add('shake-err');
+    setTimeout(()=> nodes[selectedIdx].classList.remove('shake-err'),350);
+    if(wrongTotal >= MAX_WRONG_BEFORE_CAT){
+      setTimeout(()=> showCatOverlay(), 350);
+    }
+  }
+  updateProgress();
+}
+function updateProgress(){
+  const pct = Math.round((qIndex / Math.max(1, QUESTIONS.length)) * 100);
+  progBar.style.width = pct + '%';
+}
+
+/* CAT OVERLAY + VIDEO LIST */
+function showCatOverlay(){
+  try{ qAudio.pause(); }catch(e){}
+  document.body.style.overflow = 'hidden';
+  if(!videoListRendered) renderVideoList();
+  catOverlay.style.display = 'flex';
+  catOverlay.setAttribute('aria-hidden','false');
+}
+function hideCatOverlayAndRestart(){
+  catOverlay.style.display = 'none';
+  catOverlay.setAttribute('aria-hidden','true');
+  document.body.style.overflow = '';
+  stopAllVideoIframes();
+  // restart the challenge as requested
+  init();
+}
+catProceedBtn.addEventListener('click', ()=> { hideCatOverlayAndRestart(); });
+
+function renderVideoList(){
+  videoList.innerHTML = '';
+  VIDEO_SOURCES.forEach(v=>{
+    const item = document.createElement('div');
+    item.className = 'video-item';
+    const title = document.createElement('div');
+    title.textContent = v.title;
+    title.style.color = 'var(--muted)';
+    title.style.fontSize = '13px';
+    item.appendChild(title);
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://www.youtube.com/embed/' + encodeURIComponent(v.id) + '?rel=0&playsinline=1';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.loading = 'lazy';
+    item.appendChild(iframe);
+    videoList.appendChild(item);
+  });
+  videoListRendered = true;
+  videoList.style.display = 'flex';
+  videoList.style.flexWrap = 'wrap';
+  videoList.style.justifyContent = 'center';
+  videoList.style.gap = '10px';
+  videoList.style.padding = '8px 4px';
+}
+function stopAllVideoIframes(){
+  Array.from(videoList.querySelectorAll('iframe')).forEach(iframe=>{
+    try{ iframe.src = iframe.src; }catch(e){}
+  });
+}
+showVideosBtn.addEventListener('click', ()=>{
+  if(videoList.style.display === 'none' || !videoList.style.display){
+    if(!videoListRendered) renderVideoList();
+    videoList.style.display = 'flex';
+    showVideosBtn.textContent = 'Hide videos';
+  } else {
+    stopAllVideoIframes();
+    videoList.style.display = 'none';
+    showVideosBtn.textContent = 'see thoses videos for reference';
+  }
+});
+
+/* FINISH -> SCARE -> CODE */
+function finishQuiz(){
+  const larryPath = (ASSET_PATH || '') + './images/larry.png';
+  scareImg.src = larryPath;
+  scare.style.display = 'flex';
+  scare.setAttribute('aria-hidden','false');
+  setTimeout(()=>{
+    scare.style.display = 'none';
+    scare.setAttribute('aria-hidden','true');
+    showCodeFlow();
+  }, 400);
+}
+function showCodeFlow(){
+  ONE_TIME_CODE = "LOOK";
+  displayCode.textContent = '•••-•••';
+  codeError.style.display = 'none';
+  buildCodeEntryUI();
+  document.getElementById('quizScreen').style.display = 'none';
+  codeScreen.style.display = 'block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* CODE UI */
+const POOL_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function generateCode(len = 6){
+  let s = '';
+  for(let i=0;i<len;i++) s += POOL_CHARS[Math.floor(Math.random()*POOL_CHARS.length)];
+  return s.slice(0,3) + '-' + s.slice(3);
+}
+function buildCodeEntryUI(){
+  const normalized = normalize(ONE_TIME_CODE);
+  codeSlots.innerHTML = '';
+  codePool.innerHTML = '';
+  for(let i=0;i<normalized.length;i++){
+    const s = document.createElement('div');
+    s.className = 'code-slot';
+    s.dataset.pos = i;
+    s.textContent = '';
+    s.addEventListener('click', ()=> {
+      if(!s.textContent) return;
+      const poolIndex = s.dataset.from;
+      s.textContent = '';
+      s.classList.remove('filled');
+      delete s.dataset.from;
+      const btn = document.querySelector(`.pool-btn[data-pool-index="${poolIndex}"]`);
+      if(btn){ btn.classList.remove('disabled'); btn.dataset.disabled = '0'; }
+      hideCodeError();
+    });
+    codeSlots.appendChild(s);
+  }
+  const pool = normalized.split('');
+  while(pool.length < Math.max(12, normalized.length + 8)){
+    pool.push(POOL_CHARS[Math.floor(Math.random()*POOL_CHARS.length)]);
+  }
+  shuffle(pool);
+  pool.forEach((ch, idx)=>{
+    const b = document.createElement('button');
+    b.className = 'pool-btn';
+    b.textContent = ch;
+    b.dataset.letter = ch;
+    b.dataset.poolIndex = idx;
+    b.addEventListener('click', ()=> { placePoolLetter(b); });
+    codePool.appendChild(b);
+  });
+  backspaceBtn.onclick = backspaceSlot;
+  clearBtnCode.onclick = clearAllSlots;
+  submitBtnCode.onclick = manualSubmitCode;
+}
+function placePoolLetter(btn){
+  if(btn.classList.contains('disabled')) return;
+  const slots = Array.from(document.querySelectorAll('#codeSlots .code-slot'));
+  const empty = slots.find(s => !s.textContent);
+  if(!empty) return;
+  empty.textContent = btn.dataset.letter;
+  empty.classList.add('filled');
+  empty.dataset.from = btn.dataset.poolIndex;
+  btn.classList.add('disabled');
+  btn.dataset.disabled = '1';
+  hideCodeError();
+  const formed = slots.map(s=>s.textContent||'').join('');
+  if(formed.length === slots.length){
+    setTimeout(()=> verifyCodeFromSlots(), 220);
+  }
+}
+function backspaceSlot(){
+  const slots = Array.from(document.querySelectorAll('#codeSlots .code-slot'));
+  for(let i=slots.length-1;i>=0;i--){
+    const s = slots[i];
+    if(s.textContent){
+      const poolIndex = s.dataset.from;
+      s.textContent = ''; s.classList.remove('filled'); delete s.dataset.from;
+      const btn = document.querySelector(`.pool-btn[data-pool-index="${poolIndex}"]`);
+      if(btn){ btn.classList.remove('disabled'); btn.dataset.disabled='0'; }
+      hideCodeError();
+      return;
+    }
+  }
+}
+function clearAllSlots(){
+  const slots = Array.from(document.querySelectorAll('#codeSlots .code-slot'));
+  slots.forEach(s=>{ if(s.textContent){ const poolIndex = s.dataset.from; s.textContent=''; s.classList.remove('filled'); delete s.dataset.from; const btn = document.querySelector(`.pool-btn[data-pool-index='${poolIndex}']`); if(btn){ btn.classList.remove('disabled'); btn.dataset.disabled='0'; } }});
+  hideCodeError();
+}
+function verifyCodeFromSlots(){
+  const slots = Array.from(document.querySelectorAll('#codeSlots .code-slot'));
+  const formed = slots.map(s=>s.textContent||'').join('');
+  if(normalize(formed) === normalize(ONE_TIME_CODE)){
+    goToSecretPage();
+  } else {
+    showCodeError('Incorrect code — try again.');
+    codeSlots.classList.remove('shake-err'); void codeSlots.offsetWidth; codeSlots.classList.add('shake-err');
+  }
+}
+function manualSubmitCode(){ verifyCodeFromSlots(); }
+function showCodeError(msg){ codeError.textContent = msg; codeError.style.display = 'block'; }
+function hideCodeError(){ codeError.style.display = 'none'; codeError.textContent = ''; }
+
+/* SECRET PAGE */
+    function goToSecretPage(){
+       window.location.href = "./index_final.html";
+    }
+
+
+/* BOOTSTRAP */
+const s = document.createElement('style');
+s.textContent = `
+.shake-err{animation:shake-err .36s}
+@keyframes shake-err{0%{transform:translateX(0)}25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-6px)}100%{transform:translateX(0)}}
+`;
+document.head.appendChild(s);
+
+scareImg.src = (ASSET_PATH || '') + 'larry.png'; // ensure file exists or replace path
+
+qTotalEl.textContent = QUESTIONS.length;
+init();
+
+</script>
+</body>
+</html>
